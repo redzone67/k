@@ -1,0 +1,113 @@
+
+    <!DOCTYPE html>
+    <html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            text-align: left;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .left-column {
+            width: 60%;
+        }
+        .right-column {
+            width: 40%;
+        }
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 100;
+        }
+    </style>
+</head>
+        <body>
+            <table class="sticky-header">
+                <tr>
+                <td contenteditable="true" colspan="2">&nbsp;</td>
+                </tr>
+            </table>
+            <br>
+            <table>
+    
+            <tr>
+                <td class='left-column' contenteditable='true'>Considering all the uncertainty we've had this year, growth in the first three quarters of the year is going to come out at about 1.8%, which is consistent with the long-term potential growth of the economy. For the full year, I'm expecting growth to be slightly below longer potential. So the economy has been resilient. The late market has been around full employment. It has been softening some of late. Some of that softening is coming from the demand side of the market, some of it's coming from the supply side. There are some downsides to the late market.</td>
+                <td class='right-column' contenteditable='true'>今年これだけ不確実性があることを考えると、年初から第3四半期までの成長率は約1.8％となりそうで、これは経済の長期潜在成長率と一致しています。通年では、成長が長期の潜在成長を若干下回ると予想しています。つまり、経済は粘り強さを見せてきました。労働市場はほぼ完全雇用の水準にありましたが、ここ最近はいくぶん軟化しています。その軟化の一部は需要側から、一部は供給側から来ています。労働市場にはいくつか下振れのリスクがあります。</td>
+            </tr>
+            
+            <tr>
+                <td class='left-column' contenteditable='true'>Talking about inflation, it's important to understand that inflation is running closer to 3% than to our 2% target. I'm sure we'll get into all the commentary about that. And looking ahead, I perceive an economy that after a dip in the fourth quarter because of the shutdown will recover after that into next year. We have financial conditions that are very supportive of economic activity in the late market. We have deregulation that will have some effects. We have the lagged effects of our policies over the last year, which should be in the pipeline. And we have some fiscal impulse into next year. So I expect the economy to do well next year.</td>
+                <td class='right-column' contenteditable='true'>インフレについて話すとき、理解しておくべきは、インフレ率が目標の2％ではなく、むしろ3％に近づいているということです。もちろん、この点に関してのすべてのコメントに今後触れていくことになるでしょう。今後を見据えると、私は、政府機関の閉鎖によって第4四半期に一時的な落ち込みがあるものの、その後回復し来年にかけて成長する経済を想定しています。金融環境は今、労働市場の経済活動を大いに支えています。規制緩和もいくつか効果を発揮するでしょう。我々の政策が昨年から遅行して作用する効果も、今まさにパイプラインに入っています。そして来年に向けた財政的なインパルスもあります。したがって私は、来年の経済は良好に推移すると見ています。</td>
+            </tr>
+            
+            <tr>
+                <td class='left-column' contenteditable='true'>In terms of the inflation outlook, I believe the tariffs are having an impact on inflation. We can discuss more how much of that this has been through. I believe tariffs will fade by the second half of next year and inflation will then return to a path towards 2%, provided we continue to have appropriate monetary policy. And on the labor market, what I'm expecting is a continued gradual cooling of the labor market, a labor market that will continue to be around full employment. But there are downside risks to that view. And there are upside risks in terms of the potential persistence of inflation.</td>
+                <td class='right-column' contenteditable='true'>インフレ見通しに関して言えば、関税がインフレに影響を与えていると私は考えています。その影響の度合いについては今後もっと議論できます。私は、関税の影響は来年後半には薄れていき、適切な金融政策を継続すればインフレは再び2％へと向かう道筋をたどると信じています。労働市場については、私は引き続きゆるやかな冷え込みが続くと予想しています。労働市場は依然としてほぼ完全雇用の水準を保つでしょう。ただし、この見方には下振れリスクがあります。そして、インフレの持続性という意味では上振れリスクもあります。</td>
+            </tr>
+            
+        </table>
+ <script>
+document.addEventListener('DOMContentLoaded', () => {
+    let undoStack = [];
+    let redoStack = [];
+
+    function saveState() {
+        undoStack.push(document.body.innerHTML);
+        redoStack = [];
+    }
+
+    document.addEventListener('mouseup', (event) => {
+        const target = event.target;
+        const cell = target.closest('td[contenteditable="true"]');
+        if (!cell) return;
+
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) return;
+
+        const range = selection.getRangeAt(0);
+        const span = document.createElement('span');
+
+        if (event.shiftKey) {
+            span.style.color = 'black';
+            span.style.fontWeight = 'normal';
+        } else {
+            span.style.color = 'red';
+            span.style.fontWeight = 'bold';
+        }
+
+        span.appendChild(range.extractContents());
+        range.deleteContents();
+        range.insertNode(span);
+        saveState();
+        selection.removeAllRanges();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.ctrlKey && event.key === 'z') {
+            if (undoStack.length > 0) {
+                redoStack.push(document.body.innerHTML);
+                document.body.innerHTML = undoStack.pop();
+            }
+        } else if (event.ctrlKey && event.key === 'y') {
+            if (redoStack.length > 0) {
+                undoStack.push(document.body.innerHTML);
+                document.body.innerHTML = redoStack.pop();
+            }
+        }
+    });
+});
+</script>
+
+    </body>
+        </html>
+        
