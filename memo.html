@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>HTMLメモ</title>
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+  margin: 24px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+#hint, #fontsizeView {
+  font-size: 12px;
+  color: #777;
+}
+
+#fontsizeView {
+  padding-left: 10px;
+  border-left: 1px solid #ddd;
+  min-width: 70px;
+}
+
+.toolbar button {
+  min-width: 70px;
+  text-align: center;
+  border-radius: 8px;
+}
+
+#memo {
+  min-height: 70vh;
+  border: 1px solid #ccc;
+  padding: 18px;
+  line-height: 1.7;
+  outline: none;
+  font-size: 16px;
+}
+
+/* 強調＝太字のみ */
+.highlight {
+  font-weight: 700;
+}
+
+/* 赤字強調 */
+.red-highlight {
+  color: #d00000;
+  font-weight: 700;
+}
+
+#contextMenu {
+  position: fixed;
+  display: none;
+  background: white;
+  border: 1px solid #aaa;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  z-index: 9999;
+  min-width: 160px;
+}
+
+#contextMenu div {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#contextMenu div:hover {
+  background: #eee;
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button onclick="saveMemo()">   SAVE   </button>
+  <button onclick="saveContent()">TXT ONLY</button>
+  <button onclick="clearMemo()">CLEAR</button>
+  <div id="hint">範囲選択→右クリック（太字／赤字／サイズ）。サイズは↑↓、終了はReturn</div>
+  <div id="fontsizeView"></div>
+</div>
+
+<div id="memo" contenteditable="true"></div>
+
+<div id="contextMenu">
+  <div data-action="normal">標準</div>
+  <div data-action="highlight">太字</div>
+  <div data-action="red">赤字強調</div>
+  <div data-action="font">フォントサイズ</div>
+</div>
+
+<script>
+const memo = document.getElementById("memo");
+const menu = document.getElementById("contextMenu");
+const fontView = document.getElementById("fontsizeView");
+
+let savedRange = null;
+let editMode = null; // "highlight" | "red" | "font"
+let activeFontSpan = null;
+let activeStyleSpan = null;
+
+/* 右クリック */
+memo.addEventListener("contextmenu", e => {
+  const sel = window.getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) return;
+
+  e.preventDefault();
+
+  savedRange = sel.getRangeAt(0).cloneRange();
+  activeFontSpan = null;
+
+  menu.style.left = e.clientX + "px";
+  menu.style.top = e.clientY + "px";
+  menu.style.display = "block";
+});
+
+/* メニュー閉じ */
+document.addEventListener("click", e => {
+  if (!menu.contains(e.target)) {
+    menu.style.display = "none";
+  }
+});
+
+/* メニュー操作 */
+menu.addEventListener("click", e => {
+  const action = e.target.dataset.action;
+  if (!action || !savedRange) return;
+
+  menu.style.display = "none";
+
+  if (action === "normal") {
+    applyNormal();
+    editMode = "normal";
+  }    
+    
+  if (action === "highlight") {
+    apply("highlight");
+    editMode = "highlight";
+  }
+
+  if (action === "red") {
+    apply("red-highlight");
+    editMode = "red";
+  }
+
+  if (action === "font") {
+    editMode = "font";
+  }
+});
+
+/* 選択復元 */
+function restore() {
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(savedRange);
+}
+
+/* 適用 */
+function apply(cls) {
+  restore();
+
+  const span = document.createElement("span");
+  span.className = cls;
+
+  try {
+    savedRange.surroundContents(span);
+  } catch {
+    const contents = savedRange.extractContents();
+    span.appendChild(contents);
+    savedRange.insertNode(span);
+  }
+
+  activeStyleSpan = span;
+
+  const range = document.createRange();
+  range.selectNodeContents(span);
+  savedRange = range;
+
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function finishEditMode() {
+  const targetSpan = activeStyleSpan || activeFontSpan;
+
+  if (targetSpan && targetSpan.parentNode) {
+    const spacer = document.createTextNode("\u200B");
+    targetSpan.parentNode.insertBefore(spacer, targetSpan.nextSibling);
+
+    const range = document.createRange();
+    range.setStart(spacer, 1);
+    range.collapse(true);
+
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  editMode = null;
+  savedRange = null;
+  activeFontSpan = null;
+  activeStyleSpan = null;
+  menu.style.display = "none";
+}
+
+function applyNormal() {
+  restore();
+
+  document.execCommand("removeFormat", false, null);
+
+  const sel = window.getSelection();
+
+  if (sel.rangeCount) {
+    savedRange = sel.getRangeAt(0).cloneRange();
+  }
+
+  activeStyleSpan = null;
+  activeFontSpan = null;
+}
+    
+/* フォントサイズ初回ラップ */
+function wrapFontSpan() {
+  restore();
+
+  const span = document.createElement("span");
+  const size = getFontSize();
+  span.style.fontSize = size + "px";
+
+  try {
+    savedRange.surroundContents(span);
+  } catch {
+    const contents = savedRange.extractContents();
+    span.appendChild(contents);
+    savedRange.insertNode(span);
+  }
+
+  return span;
+}
+
+/* フォントサイズ取得 */
+function getFontSize() {
+  const node = savedRange.startContainer;
+  const el = node.nodeType === 3 ? node.parentElement : node;
+  return parseInt(getComputedStyle(el).fontSize) || 16;
+}
+
+/* キー操作 */
+document.addEventListener("keydown", e => {
+
+  if (e.key === "Enter" && editMode) {
+    e.preventDefault();
+    finishEditMode();
+    return;
+  }
+
+  /* 文字入力で終了 */
+  if (editMode && e.key.length === 1) {
+    finishEditMode();
+  }
+
+  /* フォントサイズ操作 */
+  if (editMode === "font" && savedRange &&
+      (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+
+    e.preventDefault();
+
+    if (!activeFontSpan) {
+      activeFontSpan = wrapFontSpan();
+    }
+
+    const current = parseInt(getComputedStyle(activeFontSpan).fontSize);
+    const delta = e.key === "ArrowUp" ? 2 : -2;
+    const next = Math.max(8, current + delta);
+
+    activeFontSpan.style.fontSize = next + "px";
+
+    const range = document.createRange();
+    range.selectNodeContents(activeFontSpan);
+    savedRange = range;
+
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+});
+
+/* フォントサイズ表示 */
+document.addEventListener("selectionchange", () => {
+  const sel = window.getSelection();
+
+  if (!sel.rangeCount || sel.isCollapsed) {
+    fontView.textContent = "";
+    return;
+  }
+
+  const node = sel.anchorNode;
+  const el = node.nodeType === 3 ? node.parentElement : node;
+
+  const size = window.getComputedStyle(el).fontSize;
+  fontView.textContent = "Font: " + size;
+});
+
+function saveMemo() {
+  let filename = prompt("ファイル名を入力してください", "memo.html");
+
+  if (!filename) return;
+
+  // 拡張子補正
+  if (!filename.endsWith(".html")) {
+    filename += ".html";
+  }
+
+  const clone = document.documentElement.cloneNode(true);
+  clone.innerHTML = clone.innerHTML.replace(/\u200B/g, "");
+
+  const content = "<!doctype html>\n" + clone.outerHTML;
+
+  const blob = new Blob([content], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function saveContent() {
+  let filename = prompt("ファイル名を入力してください", "memo_content.html");
+  if (!filename) return;
+
+  if (!filename.endsWith(".html")) {
+    filename += ".html";
+  }
+
+  let content = memo.innerHTML
+    .replace(/\u200B/g, "")               // ゼロ幅スペース除去
+    .replace(/<span[^>]*>\s*<\/span>/g, ""); // 空span除去
+
+  const blob = new Blob([content], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+    
+function clearMemo() {
+  if (!confirm("内容をすべて削除しますか？")) return;
+
+  memo.innerHTML = "";
+
+  // 状態リセット（重要）
+  savedRange = null;
+  editMode = null;
+  activeFontSpan = null;
+
+  window.getSelection().removeAllRanges();
+  fontView.textContent = "";
+}
+</script>
+
+</body>
+</html>
